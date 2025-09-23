@@ -1,0 +1,4 @@
+__pycache__/
+ecosystem.config.json
+gunicorn.conf.py
+start_server.sh
