@@ -1,12 +1,24 @@
 from flask import Flask, render_template_string
 import psutil
 import shutil
+from flask_cors import CORS
+import requests
 import datetime
 
 import os
 
 # Configurar Flask para servir la carpeta 'palomas' como estática
 app = Flask(__name__, static_folder="palomas", static_url_path="/palomas")
+CORS(app)
+
+
+URLS = [
+    "https://cmasccp.cl",
+    "https://sensores.cmasccp.cl",
+    "https://cmpc.cmasccp.cl",
+    "https://dictuc.cmasccp.cl",
+    "https://intravision.cmasccp.cl",
+]
 
 TEMPLATE = """
 <!DOCTYPE html>
@@ -28,7 +40,25 @@ TEMPLATE = """
         <div class="stat"><strong>Uso de CPU:</strong> {{ cpu }}%</div>
         <div class="stat"><strong>Uso de RAM:</strong> {{ ram_used }} MB / {{ ram_total }} MB ({{ ram_percent }}%)</div>
         <div class="stat"><strong>Espacio Libre en Disco:</strong> {{ disk_free }} GB / {{ disk_total }} GB</div>
-    </div>
+
+           <h3>Status Checker</h3>
+        <table border="1" cellpadding="5">
+            <tr>
+                <th>URL</th>
+                <th>Status</th>
+                <th>HTTP Code</th>
+                <th>Error</th>
+            </tr>
+            {% for r in results %}
+            <tr>
+                <td>{{ r.url }}</td>
+                <td>{{ r.status }}</td>
+                <td>{{ r.code or '-' }}</td>
+                <td style="color:red;">{{ r.error or '' }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+        </div>
     <div class="last-update">Última actualización: <span id="lastUpdate">{{ last_update }}</span></div>
     
     <script>
@@ -96,6 +126,7 @@ def index():
 
     return render_template_string(
         TEMPLATE,
+        results=[check_url(url) for url in URLS],
         cpu=cpu,
         ram_used=ram_used,
         ram_total=ram_total,
@@ -105,6 +136,106 @@ def index():
         status_img=status_img,
         last_update=last_update
     )
+
+
+
+def check_url(url):
+    try:
+        response = requests.get(url, timeout=5)
+        return {
+            "url": url,
+            "status": "Online 🟢" if response.ok else "Offline 🔴",
+            "code": response.status_code,
+            "error": None
+        }
+    except requests.RequestException as e:
+        return {
+            "url": url,
+            "status": "Offline 🔴",
+            "code": None,
+            "error": str(e)
+        }
+
+@app.route('/pages')
+def pages():
+    results = [check_url(url) for url in URLS]
+    return render_template_string("""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Status Checker</title>
+    </head>
+    <body>
+        <h3>Status Checker</h3>
+        <table border="1" cellpadding="5">
+            <tr>
+                <th>URL</th>
+                <th>Status</th>
+                <th>HTTP Code</th>
+                <th>Error</th>
+            </tr>
+            {% for r in results %}
+            <tr>
+                <td>{{ r.url }}</td>
+                <td>{{ r.status }}</td>
+                <td>{{ r.code or '-' }}</td>
+                <td style="color:red;">{{ r.error or '' }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </body>
+    </html>
+    """, results=results)
+
+
+
+def check_url(url):
+    try:
+        response = requests.get(url, timeout=5)
+        return {
+            "url": url,
+            "status": "Online 🟢" if response.ok else "Offline 🔴",
+            "code": response.status_code,
+            "error": None
+        }
+    except requests.RequestException as e:
+        return {
+            "url": url,
+            "status": "Offline 🔴",
+            "code": None,
+            "error": str(e)
+        }
+
+@app.route('/pages')
+def pages():
+    results = [check_url(url) for url in URLS]
+    return render_template_string("""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Status Checker</title>
+    </head>
+    <body>
+        <h3>Status Checker</h3>
+        <table border="1" cellpadding="5">
+            <tr>
+                <th>URL</th>
+                <th>Status</th>
+                <th>HTTP Code</th>
+                <th>Error</th>
+            </tr>
+            {% for r in results %}
+            <tr>
+                <td>{{ r.url }}</td>
+                <td>{{ r.status }}</td>
+                <td>{{ r.code or '-' }}</td>
+                <td style="color:red;">{{ r.error or '' }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </body>
+    </html>
+    """, results=results)
 
 if __name__ == "__main__":
     app.run(debug=True)
