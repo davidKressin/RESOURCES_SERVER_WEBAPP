@@ -144,9 +144,9 @@ def index():
 
     # Lógica para determinar el estado
     # Si CPU > 80% o RAM > 90% o menos del 20% de disco libre, mostrar 'mal.png', si no 'normal.png'
-    if cpu > 80 or ram_percent > 90 or (disk_free / disk_total) < 0.2:
+    if cpu > 80 or ram_percent > 90 :
         status_img = "mal.png"
-    elif cpu < 50 and ram_percent < 50 and (disk_free / disk_total) > 0.5:
+    elif ram_percent < 50:
         status_img = "bien.png"
     else:
         status_img = "normal.png"
