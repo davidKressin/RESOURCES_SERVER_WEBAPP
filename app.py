@@ -14,6 +14,7 @@ CORS(app)
 
 URLS = [
     "https://cmasccp.cl",
+    "https://api-sensores.cmasccp.cl/apidocs",
     "https://sensores.cmasccp.cl",
     "https://cmpc.cmasccp.cl",
     "https://dictuc.cmasccp.cl",
