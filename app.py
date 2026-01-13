@@ -27,6 +27,8 @@ URLS = [
     "https://intravision.cmasccp.cl",
     "https://eolo.cmasccp.cl",
     "https://api-eolo.cmasccp.cl",
+    "https://hiri.cmasccp.cl",
+    "https://cmasccp.github.io/LINEA-BASE",
 ]
 
 TEMPLATE = """
@@ -69,6 +71,7 @@ TEMPLATE = """
 </head>
 <body>
     <h1>Uso de Recursos del Servidor</h1>
+        <p style="margin-bottom:10px"><a href="/capturas">Ver capturas guardadas</a></p>
         <p style="margin-bottom:10px"><a href="/cpu-ui">Ver detalles avanzados de CPU</a></p>
         <p style="margin-bottom:10px"><a href="/ram-ui">Ver detalles avanzados de RAM</a></p>
     <div id="content">
@@ -97,6 +100,19 @@ TEMPLATE = """
         </div>
     <div class="last-update">Última actualización: <span id="lastUpdate">{{ last_update }}</span></div>
     
+    <div style="margin-top:24px">
+        <h3>Reportes semanales</h3>
+        {% if pdfs %}
+        <ul>
+            {% for p in pdfs %}
+            <li><a href="/reportes/{{ p }}">{{ p }}</a></li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p>No hay reportes disponibles.</p>
+        {% endif %}
+    </div>
+
     <script>
         function updateContent() {
             const content = document.getElementById('content');
@@ -160,6 +176,15 @@ def index():
     else:
         status_img = "normal.png"
 
+    # Listar PDFs en ../monitor_server_resources/reportes
+    reportes_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'monitor_server_resources', 'reportes')
+    pdfs = []
+    if os.path.exists(reportes_dir):
+        for fname in os.listdir(reportes_dir):
+            if fname.lower().endswith('.pdf'):
+                pdfs.append(fname)
+    pdfs.sort()
+
     return render_template_string(
         TEMPLATE,
         results=[check_url(url) for url in URLS],
@@ -170,7 +195,8 @@ def index():
         disk_free=disk_free,
         disk_total=disk_total,
         status_img=status_img,
-        last_update=last_update
+        last_update=last_update,
+        pdfs=pdfs
     )
 
 
@@ -828,6 +854,88 @@ def pages():
     </body>
     </html>
     """, results=results)
+
+
+# Nueva ruta para mostrar imágenes de scripts/capturas
+from flask import send_from_directory
+
+@app.route('/capturas')
+def mostrar_capturas():
+    capturas_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'scripts', 'capturas')
+    imagenes = []
+    if os.path.exists(capturas_dir):
+        for fname in os.listdir(capturas_dir):
+            if fname.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp')):
+                imagenes.append(fname)
+    imagenes.sort()
+    html = '''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Capturas guardadas</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 40px; }
+            .gallery { display: flex; flex-wrap: wrap; gap: 16px; }
+            .gallery img { max-width: 240px; max-height: 180px; border: 1px solid #ccc; border-radius: 6px; box-shadow: 0 2px 8px #0001; cursor: pointer; transition: box-shadow 0.2s; }
+            .gallery img:hover { box-shadow: 0 4px 16px #0003; }
+            .gallery div { text-align: center; }
+            a { display: inline-block; margin-bottom: 24px; }
+            /* Modal styles */
+            .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100vw; height: 100vh; overflow: auto; background: rgba(0,0,0,0.8); }
+            .modal-content { margin: 5% auto; display: block; max-width: 90vw; max-height: 80vh; border-radius: 8px; box-shadow: 0 8px 32px #0008; }
+            .close { position: absolute; top: 30px; right: 50px; color: #fff; font-size: 40px; font-weight: bold; cursor: pointer; z-index: 1100; }
+        </style>
+    </head>
+    <body>
+        <h1>Capturas guardadas</h1>
+        <a href="/">← Volver a la página principal</a>
+        <div class="gallery">
+    '''
+    for img in imagenes:
+        html += f'<div><img src="/capturas_img/{img}" alt="{img}" onclick="showModal(\'/capturas_img/{img}\')"><br>{img}</div>'
+    if not imagenes:
+        html += '<p>No hay imágenes en la carpeta.</p>'
+    html += '''
+        </div>
+        <div id="imgModal" class="modal" onclick="hideModal(event)">
+            <span class="close" onclick="hideModal(event)">&times;</span>
+            <img class="modal-content" id="modalImg">
+        </div>
+        <script>
+            function showModal(src) {
+                var modal = document.getElementById('imgModal');
+                var modalImg = document.getElementById('modalImg');
+                modal.style.display = 'block';
+                modalImg.src = src;
+            }
+            function hideModal(event) {
+                var modal = document.getElementById('imgModal');
+                if (event.target === modal || event.target.className === 'close') {
+                    modal.style.display = 'none';
+                    document.getElementById('modalImg').src = '';
+                }
+            }
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') hideModal({target: document.getElementById('imgModal')});
+            });
+        </script>
+    </body>
+    </html>
+    '''
+    return html
+
+# Ruta para servir imágenes de capturas
+@app.route('/capturas_img/<path:filename>')
+def capturas_img(filename):
+    capturas_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'scripts', 'capturas')
+    return send_from_directory(capturas_dir, filename)
+
+
+# Ruta para servir y forzar descarga de reportes PDF
+@app.route('/reportes/<path:filename>')
+def descargar_reporte(filename):
+    reportes_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'monitor_server_resources', 'reportes')
+    return send_from_directory(reportes_dir, filename, as_attachment=True)
 
 if __name__ == "__main__":
     app.run(debug=True)
