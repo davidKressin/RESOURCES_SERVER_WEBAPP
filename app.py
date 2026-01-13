@@ -72,6 +72,7 @@ TEMPLATE = """
 <body>
     <h1>Uso de Recursos del Servidor</h1>
         <p style="margin-bottom:10px"><a href="/capturas">Ver capturas guardadas</a></p>
+        <p style="margin-bottom:10px"><a href="/backups">Ver backups de la base de datos</a></p>
         <p style="margin-bottom:10px"><a href="/cpu-ui">Ver detalles avanzados de CPU</a></p>
         <p style="margin-bottom:10px"><a href="/ram-ui">Ver detalles avanzados de RAM</a></p>
     <div id="content">
@@ -936,6 +937,56 @@ def capturas_img(filename):
 def descargar_reporte(filename):
     reportes_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'monitor_server_resources', 'reportes')
     return send_from_directory(reportes_dir, filename, as_attachment=True)
+
+
+# Página para listar backups de base de datos (.sql) en ../backups_db
+@app.route('/backups')
+def listar_backups():
+    backups_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'backups_db')
+    archivos = []
+    if os.path.exists(backups_dir):
+        for fname in os.listdir(backups_dir):
+            if fname.lower().endswith('.sql'):
+                archivos.append(fname)
+    archivos.sort()
+    html = '''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <title>Backups DB</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 40px; }
+            ul { list-style: none; padding: 0; }
+            li { margin: 8px 0; }
+            a { color:#0066cc; text-decoration:none }
+            a:hover { text-decoration:underline }
+        </style>
+    </head>
+    <body>
+        <h1>Backups de la Base de Datos</h1>
+        <a href="/">← Volver a la página principal</a>
+        <div style="margin-top:20px">
+    '''
+    if archivos:
+        html += '<ul>'
+        for f in archivos:
+            html += f'<li><a href="/backups_file/{f}">{f}</a></li>'
+        html += '</ul>'
+    else:
+        html += '<p>No se encontraron archivos .sql en la carpeta.</p>'
+    html += '''
+        </div>
+    </body>
+    </html>
+    '''
+    return html
+
+
+@app.route('/backups_file/<path:filename>')
+def descargar_backup(filename):
+    backups_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'backups_db')
+    return send_from_directory(backups_dir, filename, as_attachment=True)
 
 if __name__ == "__main__":
     app.run(debug=True)
